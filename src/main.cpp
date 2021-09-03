@@ -60,6 +60,36 @@ void competition_initialize() {}
  */
 void autonomous() {}
 
+void goTo(double ix, double iy, double iyaw)
+{
+	pros::c::gps_status_s_t gpsData = gps.get_status();
+	double x, y, yaw;
+	constexpr double lowerLimit = .10;
+
+	do
+	{
+		gpsData = gps.get_status();
+		x = (gpsData.x - ix) / 2;
+		x = std::copysign(std::clamp(std::abs(x), lowerLimit, 1.0), x);
+		y = (gpsData.y - iy) / 2;
+		y = std::copysign(std::clamp(std::abs(y), lowerLimit, 1.0), y);
+		yaw = -(gpsData.yaw - iyaw) / 270;
+		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, 1.0), yaw);
+		xdrive->xArcade(x, y, yaw);
+		pros::screen::print(TEXT_MEDIUM, 2, "X Position: %3f", gpsData.x);
+		pros::screen::print(TEXT_MEDIUM, 3, "Y Position: %3f", gpsData.y);
+		pros::screen::print(TEXT_MEDIUM, 4, "Yaw: %3f", gpsData.yaw);
+		pros::screen::print(TEXT_MEDIUM, 5, "Percent Yaw: %3f", -(gpsData.yaw - iyaw) / 180);
+		pros::delay(20);
+	} while (abs(gpsData.x - ix) > .02 || abs(gpsData.y - iy) > .02 || abs(gpsData.yaw - iyaw) > 1.0);
+	xdrive->stop();
+}
+
+double inchesToMeters(double inches)
+{
+	return 0.0254 * inches;
+}
+
 /**
  * Runs the operator control code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -75,24 +105,10 @@ void autonomous() {}
  */
 void opcontrol()
 {
-	pros::c::gps_status_s_t gpsData = gps.get_status();
-	double x, y, yaw;
-	constexpr double lowerLimit = .06;
 	pros::delay(500);
-	do
-	{
-		gpsData = gps.get_status();
-		x = gpsData.x / 2;
-		x = std::copysign(std::clamp(std::abs(x), lowerLimit, 1.0), x);
-		y = gpsData.y / 2;
-		y = std::copysign(std::clamp(std::abs(y), lowerLimit, 1.0), y);
-		yaw = -gpsData.yaw / 180;
-		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, 1.0), yaw);
-		xdrive->xArcade(x, y, yaw);
-		pros::screen::print(TEXT_MEDIUM, 2, "X Position: %3f", gpsData.x);
-		pros::screen::print(TEXT_MEDIUM, 2, "Y Position: %3f", gpsData.y);
-		pros::screen::print(TEXT_MEDIUM, 5, "Yaw: %3f", gpsData.yaw);
-		pros::delay(20);
-	} while (abs(gpsData.x) > .02 || abs(gpsData.y) > .02 || abs(gpsData.yaw) > 1.0);
-	xdrive->stop();
+	goTo(inchesToMeters(36), inchesToMeters(36), 0);
+	goTo(inchesToMeters(-36), inchesToMeters(36), 0);
+	goTo(inchesToMeters(-36), inchesToMeters(-36), 0);
+	goTo(inchesToMeters(36), inchesToMeters(-36), 0);
+	goTo(inchesToMeters(0), inchesToMeters(0), 0);
 }
