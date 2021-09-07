@@ -64,23 +64,35 @@ void goTo(double ix, double iy, double iyaw)
 {
 	pros::c::gps_status_s_t gpsData = gps.get_status();
 	double x, y, yaw;
-	constexpr double lowerLimit = .10;
+	constexpr double lowerLimit = 0.10, upperLimit = 1.0;
+	// const double initialDist = sqrt(pow(gpsData.x - ix, 2.0) + pow(gpsData.y - iy, 2.0));
+	// pros::screen::print(TEXT_MEDIUM, 1, "%% Turn: %3f", initialDist);
+	// double pctTurnPower;
 
 	do
 	{
+		// pctTurnPower = 1.0 - sqrt(gpsData.x * gpsData.x + gpsData.y * gpsData.y) / initialDist;
 		gpsData = gps.get_status();
-		x = (gpsData.x - ix) / 2;
-		x = std::copysign(std::clamp(std::abs(x), lowerLimit, 1.0), x);
-		y = (gpsData.y - iy) / 2;
-		y = std::copysign(std::clamp(std::abs(y), lowerLimit, 1.0), y);
-		yaw = -(gpsData.yaw - iyaw) / 270;
-		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, 1.0), yaw);
+		x = gpsData.x - ix;
+		x = x * cos(gpsData.yaw) - y * sin(gpsData.yaw);
+		x /= 2;
+		x = std::copysign(std::clamp(std::abs(x), lowerLimit, upperLimit), x);
+		y = gpsData.y - iy;
+		y = x * sin(gpsData.yaw) + y * cos(gpsData.yaw);
+		y /= 2;
+		y = std::copysign(std::clamp(std::abs(y), lowerLimit, upperLimit), y);
+		yaw = -(gpsData.yaw - iyaw) / 180 * sqrt(x * x + y * y);
+		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, upperLimit), yaw);
 		xdrive->xArcade(x, y, yaw);
+		// cont.clear();
+		// cont.print(2, 0, "X: %3f", gpsData.x);
+		// cont.print(3, 0, "Y: %3f", gpsData.y);
+		// cont.print(4, 0, "Yaw: %3f", gpsData.yaw);
+		// pros::screen::print(TEXT_MEDIUM, 1, "Pct Turn Pow: %3f", pctTurnPower);
 		pros::screen::print(TEXT_MEDIUM, 2, "X Position: %3f", gpsData.x);
 		pros::screen::print(TEXT_MEDIUM, 3, "Y Position: %3f", gpsData.y);
 		pros::screen::print(TEXT_MEDIUM, 4, "Yaw: %3f", gpsData.yaw);
-		pros::screen::print(TEXT_MEDIUM, 5, "Percent Yaw: %3f", -(gpsData.yaw - iyaw) / 180);
-		pros::delay(20);
+		pros::delay(10);
 	} while (abs(gpsData.x - ix) > .02 || abs(gpsData.y - iy) > .02 || abs(gpsData.yaw - iyaw) > 1.0);
 	xdrive->stop();
 }
@@ -105,10 +117,11 @@ double inchesToMeters(double inches)
  */
 void opcontrol()
 {
+	gps.get_status();
 	pros::delay(500);
-	goTo(inchesToMeters(36), inchesToMeters(36), 0);
-	goTo(inchesToMeters(-36), inchesToMeters(36), 0);
-	goTo(inchesToMeters(-36), inchesToMeters(-36), 0);
-	goTo(inchesToMeters(36), inchesToMeters(-36), 0);
+	// goTo(inchesToMeters(36), inchesToMeters(36), 0);
+	// goTo(inchesToMeters(-36), inchesToMeters(36), 0);
+	// goTo(inchesToMeters(-36), inchesToMeters(-36), 0);
+	// goTo(inchesToMeters(36), inchesToMeters(-36), 0);
 	goTo(inchesToMeters(0), inchesToMeters(0), 0);
 }
