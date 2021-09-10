@@ -69,6 +69,7 @@ extern "C"
     void disabled(void);
     void competition_initialize(void);
     void opcontrol(void);
+    void goTo(double ix, double iy, double iyaw);
 #ifdef __cplusplus
 }
 #endif

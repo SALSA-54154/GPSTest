@@ -62,38 +62,55 @@ void autonomous() {}
 
 void goTo(double ix, double iy, double iyaw)
 {
+	// Declare variables to be used in the loop
 	pros::c::gps_status_s_t gpsData = gps.get_status();
 	double x, y, yaw, yawRadians;
+
+	// Set upper and lower limits so the motors don't stall
 	constexpr double lowerLimit = 0.10, upperLimit = 1.0;
-	// const double initialDist = sqrt(pow(gpsData.x - ix, 2.0) + pow(gpsData.y - iy, 2.0));
-	// pros::screen::print(TEXT_MEDIUM, 1, "%% Turn: %3f", initialDist);
-	// double pctTurnPower;
 
 	do
 	{
-		// pctTurnPower = 1.0 - sqrt(gpsData.x * gpsData.x + gpsData.y * gpsData.y) / initialDist;
+		// Get GPS position
 		gpsData = gps.get_status();
+
+		// Set initial values for x, y, and yaw for calculations below
 		x = gpsData.x - ix;
 		y = gpsData.y - iy;
 		yaw = gpsData.yaw;
+
+		// Rotate the vectors of the x and y error to match the rotation of the robot on the field
 		yawRadians = yaw * M_PI / 180.0;
 		x = x * std::cos(yawRadians) - y * std::sin(yawRadians);
 		y = x * std::sin(yawRadians) + y * std::cos(yawRadians);
-		pros::screen::print(TEXT_MEDIUM, 5, "X Shifted: %3f", x);
-		pros::screen::print(TEXT_MEDIUM, 6, "Y Shifted: %3f", y);
+
+		// TO BE REPLACED WITH PID
+		// Scale the values down so at 2m from the target, the drivebase moves at 100% power
 		x /= 2.0;
 		y /= 2.0;
+		// Scale down the yaw value (and negate it) so at 180° from the target, it turns at 100% power
 		yaw = -(yaw - iyaw) / 180.0;
-		// Limits the value to a lower and upper limit
+
+		// Limit the values to an upper and lower limit so the motor always makes the wheels move
+		// The drive function needs to be a value between 0 and 1
 		x = std::copysign(std::clamp(std::abs(x), lowerLimit, upperLimit), x);
 		y = std::copysign(std::clamp(std::abs(y), lowerLimit, upperLimit), y);
 		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, upperLimit), yaw);
+
+		// Make the chassis move based on error values
 		xdrive->xArcade(x, y, yaw);
+
+		// Printouts for debugging
 		pros::screen::print(TEXT_MEDIUM, 2, "X Position: %3f", gpsData.x);
 		pros::screen::print(TEXT_MEDIUM, 3, "Y Position: %3f", gpsData.y);
 		pros::screen::print(TEXT_MEDIUM, 4, "Yaw: %3f", gpsData.yaw);
+
 		pros::delay(20);
+
+		// Check if position is within 2 cm and 1° of the target to exit the loop
 	} while (std::abs(gpsData.x - ix) > .01 || std::abs(gpsData.y - iy) > .01 || std::abs(gpsData.yaw - iyaw) > 0.5);
+
+	// Stop chassis motion
 	xdrive->stop();
 }
 
