@@ -12,8 +12,8 @@ auto chassis = okapi::ChassisControllerBuilder()
 				   .withDimensions(okapi::AbstractMotor::gearset::green, {{4_in, 20_in}, okapi::imev5GreenTPR})
 				   .build();
 auto xdrive = std::dynamic_pointer_cast<okapi::XDriveModel>(chassis->getModel());
-pros::Gps primary_gps(9, 0, 4, 180);
-pros::Gps secondary_gps2(10, 0, 2, 0);
+pros::Gps primaryGPS(9, 0, 4, 180);
+pros::Gps secondaryGPS(10, 0, 2, 0);
 
 /**
  * A callback function for LLEMU's center button.
@@ -70,57 +70,62 @@ int turn_proportional_tune = 1;
 int turn_derivative_tune = 1;
 
 //PID for driving to X and Y coordinate
-int PID (double dist, double curr, double p, double d){
-  double prevError = 0.0;
-  double Error = dist-curr;
-  double dError = Error-prevError;
+int PID(double dist, double curr, double p, double d)
+{
+	double prevError = 0.0;
+	double Error = dist - curr;
+	double dError = Error - prevError;
 
-  double mtrspeed = p * Error + d * dError;
+	double mtrspeed = p * Error + d * dError;
 
-  double velmax = 85;
+	double velmax = 85;
 
-  if (mtrspeed > velmax){
-    mtrspeed = velmax;
-  } 
-  
-  if (mtrspeed < -velmax){
-    mtrspeed = -velmax;
-  }
+	if (mtrspeed > velmax)
+	{
+		mtrspeed = velmax;
+	}
 
-  prevError = Error;
+	if (mtrspeed < -velmax)
+	{
+		mtrspeed = -velmax;
+	}
 
-  return (int) mtrspeed; 
+	prevError = Error;
+
+	return (int)mtrspeed;
 }
 
 // PID for turning to a desired angle
-int Turn_PID (double goal_angle, double curr_angle, double p, double d){
-  double prevError = 0.0;
-  double Error = goal_angle - curr_angle;
-  double dError = Error-prevError;
+int Turn_PID(double goal_angle, double curr_angle, double p, double d)
+{
+	double prevError = 0.0;
+	double Error = goal_angle - curr_angle;
+	double dError = Error - prevError;
 
-  double mtrspeed = p * Error + d * dError;
+	double mtrspeed = p * Error + d * dError;
 
-  double velmax = 85;
+	double velmax = 85;
 
-  if (mtrspeed > velmax){
-    mtrspeed = velmax;
-  } 
-  
-  if (mtrspeed < -velmax){
-    mtrspeed = -velmax;
-  }
+	if (mtrspeed > velmax)
+	{
+		mtrspeed = velmax;
+	}
 
-  prevError = Error;
+	if (mtrspeed < -velmax)
+	{
+		mtrspeed = -velmax;
+	}
 
-  return (int) mtrspeed; 
+	prevError = Error;
+
+	return (int)mtrspeed;
 }
-
 
 // Movement function
 void goTo(double ix, double iy, double iyaw)
 {
 	// Declare variables to be used in the loop
-	pros::c::gps_status_s_t gpsData = primary_gps.get_status();
+	pros::c::gps_status_s_t gpsData = primaryGPS.get_status();
 	double x, y, yaw, yawRadians;
 
 	// Set upper and lower limits so the motors don't stall
@@ -129,7 +134,7 @@ void goTo(double ix, double iy, double iyaw)
 	do
 	{
 		// Get GPS position
-		gpsData = primary_gps.get_status();
+		gpsData = primaryGPS.get_status();
 
 		// Set initial values for x, y, and yaw for calculations below
 		x = gpsData.x - ix;
@@ -156,9 +161,9 @@ void goTo(double ix, double iy, double iyaw)
 
 		// Limit the values to an upper and lower limit so the motor always makes the wheels move
 		// The drive function needs to be a value between 0 and 1
-		x = std::copysign(std::clamp(std::abs(x_power/100), lowerLimit, upperLimit), x_power/100);
-		y = std::copysign(std::clamp(std::abs(y_power/100), lowerLimit, upperLimit), y_power/100);
-		yaw = std::copysign(std::clamp(std::abs(yaw_power/100), lowerLimit, upperLimit), yaw_power/100);
+		x = std::copysign(std::clamp(std::abs(x_power / 100), lowerLimit, upperLimit), x_power / 100);
+		y = std::copysign(std::clamp(std::abs(y_power / 100), lowerLimit, upperLimit), y_power / 100);
+		yaw = std::copysign(std::clamp(std::abs(yaw_power / 100), lowerLimit, upperLimit), yaw_power / 100);
 
 		// Make the chassis move based on error values
 		xdrive->xArcade(x, y, yaw);
@@ -176,8 +181,6 @@ void goTo(double ix, double iy, double iyaw)
 	// Stop chassis motion
 	xdrive->stop();
 }
-
-
 
 double inchesToMeters(double inches)
 {
@@ -199,7 +202,7 @@ double inchesToMeters(double inches)
  */
 void opcontrol()
 {
-	gps.get_status();
+	primaryGPS.get_status();
 	pros::delay(500);
 	goTo(inchesToMeters(36), inchesToMeters(36), 45);
 	goTo(inchesToMeters(-36), inchesToMeters(36), -45);
