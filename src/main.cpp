@@ -66,10 +66,34 @@ int motor_speed;
 int proportional_tune = 1;
 int derivative_tune = 1;
 
+int turn_proportional_tune = 1;
+int turn_derivative_tune = 1;
 
 int PID (double dist, double curr, double p, double d){
   double prevError = 0.0;
   double Error = dist-curr;
+  double dError = Error-prevError;
+
+  double mtrspeed = p * Error + d * dError;
+
+  double velmax = 85;
+
+  if (mtrspeed > velmax){
+    mtrspeed = velmax;
+  } 
+  
+  if (mtrspeed < -velmax){
+    mtrspeed = -velmax;
+  }
+
+  prevError = Error;
+
+  return (int) mtrspeed; 
+}
+
+int Turn_PID (double goal_angle, double curr_angle, double p, double d){
+  double prevError = 0.0;
+  double Error = goal_angle - curr_angle;
   double dError = Error-prevError;
 
   double mtrspeed = p * Error + d * dError;
@@ -121,15 +145,16 @@ void goTo(double ix, double iy, double iyaw)
 		//PID initial concept
 		x_power = PID(x, 0, proportional_tune, derivative_tune);
 		y_power = PID(y, 0, proportional_tune, derivative_tune);
+		yaw_power = PID(iyaw, yaw, turn_proportional_tune, turn_derivative_tune);
 
 		// Scale down the yaw value (and negate it) so at 180° from the target, it turns at 100% power
 		yaw = -(yaw - iyaw) / 180.0;
 
 		// Limit the values to an upper and lower limit so the motor always makes the wheels move
 		// The drive function needs to be a value between 0 and 1
-		x = std::copysign(std::clamp(std::abs(x_power), lowerLimit, upperLimit), x_power);
-		y = std::copysign(std::clamp(std::abs(y_power), lowerLimit, upperLimit), y_power);
-		yaw = std::copysign(std::clamp(std::abs(yaw), lowerLimit, upperLimit), yaw);
+		x = std::copysign(std::clamp(std::abs(x_power/100), lowerLimit, upperLimit), x_power/100);
+		y = std::copysign(std::clamp(std::abs(y_power/100), lowerLimit, upperLimit), y_power/100);
+		yaw = std::copysign(std::clamp(std::abs(yaw_power/100), lowerLimit, upperLimit), yaw_power/100);
 
 		// Make the chassis move based on error values
 		xdrive->xArcade(x, y, yaw);
