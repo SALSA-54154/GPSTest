@@ -152,8 +152,8 @@ void goTo(double ix, double iy, double iyaw)
 		//y /= 2.0;
 
 		//PID initial concept
-		double x_power = PID(x, 0, proportional_tune, derivative_tune);
-		double y_power = PID(y, 0, proportional_tune, derivative_tune);
+		double x_power = PID(x, gpsData.x, proportional_tune, derivative_tune);
+		double y_power = PID(y, gpsData.y, proportional_tune, derivative_tune);
 		double yaw_power = PID(iyaw, yaw, turn_proportional_tune, turn_derivative_tune);
 
 		// Scale down the yaw value (and negate it) so at 180° from the target, it turns at 100% power
