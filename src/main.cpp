@@ -69,6 +69,7 @@ int derivative_tune = 1;
 int turn_proportional_tune = 1;
 int turn_derivative_tune = 1;
 
+//PID for driving to X and Y coordinate
 int PID (double dist, double curr, double p, double d){
   double prevError = 0.0;
   double Error = dist-curr;
@@ -91,6 +92,7 @@ int PID (double dist, double curr, double p, double d){
   return (int) mtrspeed; 
 }
 
+// PID for turning to a desired angle
 int Turn_PID (double goal_angle, double curr_angle, double p, double d){
   double prevError = 0.0;
   double Error = goal_angle - curr_angle;
@@ -113,6 +115,8 @@ int Turn_PID (double goal_angle, double curr_angle, double p, double d){
   return (int) mtrspeed; 
 }
 
+
+// Movement function
 void goTo(double ix, double iy, double iyaw)
 {
 	// Declare variables to be used in the loop
