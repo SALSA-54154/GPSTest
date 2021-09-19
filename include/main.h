@@ -69,7 +69,7 @@ extern "C"
     void disabled(void);
     void competition_initialize(void);
     void opcontrol(void);
-    void goTo(double ix, double iy, double iyaw, double resolution = 1.0);
+    void goTo(okapi::Point ipoint, okapi::QAngle iangle, okapi::IterativePosPIDController::Gains idriveGains, okapi::IterativePosPIDController::Gains iturnGains);
 #ifdef __cplusplus
 }
 #endif

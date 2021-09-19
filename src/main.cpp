@@ -12,8 +12,8 @@ auto chassis = okapi::ChassisControllerBuilder()
 				   .withDimensions(okapi::AbstractMotor::gearset::green, {{4_in, 20_in}, okapi::imev5GreenTPR})
 				   .build();
 auto xdrive = std::dynamic_pointer_cast<okapi::XDriveModel>(chassis->getModel());
-pros::Gps gpsPrimary(9, 0, 4, 180);
-pros::Gps gpsSecondary(10, 0, 2, 0);
+pros::Gps gpsPrimary(9, 0.0, 0.0254 * 4.0);
+pros::Gps gpsSecondary(10, 0.0, 0.0, 180.0, 0.0, 0.0254 * 2.0);
 
 /**
  * A callback function for LLEMU's center button.
@@ -62,69 +62,73 @@ void competition_initialize() {}
 void autonomous() {}
 
 // Movement function
-void goTo(double ix, double iy, double iyaw, double resolution)
+void goTo(okapi::Point ipoint, okapi::QAngle iangle, okapi::IterativePosPIDController::Gains idriveGains, okapi::IterativePosPIDController::Gains iturnGains)
 {
-	// PID (or just PD in this case) values to be tuned
-	constexpr double driveP = 1.0, driveD = 1.0, turnP = 1.0 / 180.0, turnD = 1.0;
+	// Create PID controllers using OkapiLib to be used in the do-while loop
+	auto xPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
+	auto yPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
+	auto yawPID = okapi::IterativePosPIDController(iturnGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
 
-	// Declare variables to be used in the loop
-	pros::c::gps_status_s_t gpsData = gpsPrimary.get_status();
-	double xErr = gpsData.x - ix, yErr = gpsData.y - iy, yawErr = iyaw - gpsData.yaw, xPrevErr, yPrevErr, yawPrevErr, xPow, yPow, yawPow, yawRadians;
+	// Set the target for the PID controllers to the input parameters
+	xPID.setTarget(ipoint.x.convert(okapi::meter));
+	yPID.setTarget(ipoint.y.convert(okapi::meter));
+	yawPID.setTarget(iangle.convert(okapi::degree));
 
 	// Set upper and lower limits so the motors don't stall
 	constexpr double lowerLimit = 0.10, upperLimit = 1.0;
+	xPID.setControllerSetTargetLimits(upperLimit, lowerLimit);
+	yPID.setControllerSetTargetLimits(upperLimit, lowerLimit);
+	yawPID.setControllerSetTargetLimits(upperLimit, lowerLimit);
+
+	// Declare variables to be used in the loop
+	pros::c::gps_status_s_t gpsData;
+	double xPow, yPow, yawPow, yawRadians;
 
 	do
 	{
 		// Get GPS position
-		gpsData = gpsPrimary.get_status();
+		// Check if primary GPS can see
+		if (gpsPrimary.get_error() < .01)
+			// Use primary GPS data
+			gpsData = gpsPrimary.get_status();
+		else
+		{
+			// Use secondary GPS data
+			gpsData = gpsSecondary.get_status();
 
-		// Save previous error values for calculation below
-		xPrevErr = xErr;
-		yPrevErr = yErr;
-		yawPrevErr = yawErr;
+			// Flip sensor yaw 180
+			gpsData.yaw += 180.0;
+			if (gpsData.yaw > 180.0)
+				gpsData.yaw = 180.0 - gpsData.yaw;
+		}
 
-		// Set initial values for x, y, and yaw for calculations below
-		xErr = gpsData.x - ix;
-		yErr = gpsData.y - iy;
-		yawErr = iyaw - gpsData.yaw;
+		xPow = xPID.step(gpsData.x);
+		yPow = yPID.step(gpsData.y);
+		yawPow = yawPID.step(gpsData.yaw);
 
-		// Scale the errors to a power percentage based on PID values
-		xPow = xErr * driveP + (xErr - xPrevErr) * driveD;
-		yPow = yErr * driveP + (yErr - yPrevErr) * driveD;
-		yawPow = yawErr * turnP + (yawErr - yawPrevErr) * turnD;
-
-		// Rotate the vectors of the x and y error to match the rotation of the robot on the field
-		yawRadians = gpsData.yaw * M_PI / 180.0;
+		yawRadians = okapi::degreeToRadian * gpsData.yaw;
 		xPow = xPow * std::cos(yawRadians) - yPow * std::sin(yawRadians);
 		yPow = xPow * std::sin(yawRadians) + yPow * std::cos(yawRadians);
 
-		// Limit the values to an upper and lower limit so the motor always makes the wheels move
-		// The drive function needs to be a value between 0 and 1 as it is a percentage
-		xPow = std::copysign(std::clamp(std::abs(xPow), lowerLimit, upperLimit), xPow);
-		yPow = std::copysign(std::clamp(std::abs(yPow), lowerLimit, upperLimit), yPow);
-		yawPow = std::copysign(std::clamp(std::abs(yawPow), lowerLimit, upperLimit), yawPow);
-
+		// Rotate the vectors of the x and y error to match the rotation of the robot on the field and
 		// Make the chassis move based on error values
 		xdrive->xArcade(xPow, yPow, yawPow);
 
 		// Printouts for debugging
-		pros::screen::print(TEXT_MEDIUM, 2, "X Position: %3f", gpsData.x);
-		pros::screen::print(TEXT_MEDIUM, 3, "Y Position: %3f", gpsData.y);
-		pros::screen::print(TEXT_MEDIUM, 4, "Yaw: %3f", gpsData.yaw);
+		pros::screen::print(TEXT_MEDIUM, 1, "X Position: %3f", gpsData.x);
+		pros::screen::print(TEXT_MEDIUM, 2, "Y Position: %3f", gpsData.y);
+		pros::screen::print(TEXT_MEDIUM, 3, "Yaw: %3f", gpsData.yaw);
+		pros::screen::print(TEXT_MEDIUM, 4, "xSettled: %d", xPID.isSettled());
+		pros::screen::print(TEXT_MEDIUM, 5, "ySettled: %d", yPID.isSettled());
+		pros::screen::print(TEXT_MEDIUM, 6, "yawSettled: %d", yawPID.isSettled());
 
 		pros::delay(20);
 
-		// Check if position is within <resolution> cm and <resolution>° of the target to exit the loop
-	} while (std::abs(xErr) > resolution * .005 || std::abs(yErr) > resolution * .005 || std::abs(yawErr) > resolution * .5);
+		// Check if chassis is settled to exit the loop
+	} while (!xPID.isSettled() || !yPID.isSettled() || !yawPID.isSettled());
 
 	// Stop chassis motion
 	xdrive->stop();
-}
-
-double inchesToMeters(double inches)
-{
-	return 0.0254 * inches;
 }
 
 /**
@@ -144,10 +148,12 @@ void opcontrol()
 {
 	gpsPrimary.get_status();
 	pros::delay(500);
-	goTo(inchesToMeters(36), inchesToMeters(36), 45);
-	goTo(inchesToMeters(-36), inchesToMeters(36), -45);
-	goTo(inchesToMeters(-24), inchesToMeters(0), -90);
-	goTo(inchesToMeters(-36), inchesToMeters(-36), -135);
-	goTo(inchesToMeters(36), inchesToMeters(-36), 135);
-	goTo(inchesToMeters(0), inchesToMeters(0), 0);
+	const okapi::IterativePosPIDController::Gains driveGains = {-2.0, 0.0, 0.0}, turnGains = {1.0 / 90.0, 0.0, 0.0};
+
+	goTo({36_in, 36_in}, 45_deg, driveGains, turnGains);
+	goTo({-36_in, 36_in}, -45_deg, driveGains, turnGains);
+	goTo({-24_in, 0_in}, -90_deg, driveGains, turnGains);
+	goTo({-36_in, -36_in}, -135_deg, driveGains, turnGains);
+	goTo({36_in, -36_in}, 135_deg, driveGains, turnGains);
+	goTo({0_in, 0_in}, 0_deg, driveGains, turnGains);
 }
