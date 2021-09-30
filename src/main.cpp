@@ -13,7 +13,7 @@ auto chassis = okapi::ChassisControllerBuilder()
 				   .build();
 auto xdrive = std::dynamic_pointer_cast<okapi::XDriveModel>(chassis->getModel());
 pros::Gps gpsPrimary(9, 0.0, 0.0254 * 4.0);
-pros::Gps gpsSecondary(10, 0.0, 0.0, 180.0, 0.0, 0.0254 * 2.0);
+// pros::Gps gpsSecondary(10, 0.0, 0.0, 180.0, 0.0, 0.0254 * 2.0);
 
 /**
  * A callback function for LLEMU's center button.
@@ -65,9 +65,9 @@ void autonomous() {}
 void goTo(okapi::Point ipoint, okapi::QAngle iangle, okapi::IterativePosPIDController::Gains idriveGains, okapi::IterativePosPIDController::Gains iturnGains)
 {
 	// Create PID controllers using OkapiLib to be used in the do-while loop
-	auto xPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
-	auto yPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
-	auto yawPID = okapi::IterativePosPIDController(iturnGains, okapi::TimeUtilFactory().withSettledUtilParams(1.0));
+	auto xPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(0.08));
+	auto yPID = okapi::IterativePosPIDController(idriveGains, okapi::TimeUtilFactory().withSettledUtilParams(0.08));
+	auto yawPID = okapi::IterativePosPIDController(iturnGains, okapi::TimeUtilFactory().withSettledUtilParams(8.0));
 
 	// Set the target for the PID controllers to the input parameters
 	xPID.setTarget(ipoint.x.convert(okapi::meter));
@@ -88,19 +88,19 @@ void goTo(okapi::Point ipoint, okapi::QAngle iangle, okapi::IterativePosPIDContr
 	{
 		// Get GPS position
 		// Check if primary GPS can see
-		if (gpsPrimary.get_error() < .01)
-			// Use primary GPS data
-			gpsData = gpsPrimary.get_status();
-		else
-		{
-			// Use secondary GPS data
-			gpsData = gpsSecondary.get_status();
+		// if (gpsPrimary.get_error() < .01)
+		// Use primary GPS data
+		gpsData = gpsPrimary.get_status();
+		// else
+		// {
+		// 	// Use secondary GPS data
+		// 	gpsData = gpsSecondary.get_status();
 
-			// Flip sensor yaw 180
-			gpsData.yaw += 180.0;
-			if (gpsData.yaw > 180.0)
-				gpsData.yaw = 180.0 - gpsData.yaw;
-		}
+		// 	// Flip sensor yaw 180
+		// 	gpsData.yaw += 180.0;
+		// 	if (gpsData.yaw > 180.0)
+		// 		gpsData.yaw = 180.0 - gpsData.yaw;
+		// }
 
 		xPow = xPID.step(gpsData.x);
 		yPow = yPID.step(gpsData.y);
@@ -148,12 +148,12 @@ void opcontrol()
 {
 	gpsPrimary.get_status();
 	pros::delay(500);
-	const okapi::IterativePosPIDController::Gains driveGains = {-2.0, 0.0, 0.0}, turnGains = {1.0 / 90.0, 0.0, 0.0};
+	const okapi::IterativePosPIDController::Gains driveGains = {-2.0, 0.0, -0.01}, turnGains = {1.0 / 90.0, 0.0, 0.001};
 
-	goTo({36_in, 36_in}, 45_deg, driveGains, turnGains);
-	goTo({-36_in, 36_in}, -45_deg, driveGains, turnGains);
-	goTo({-24_in, 0_in}, -90_deg, driveGains, turnGains);
-	goTo({-36_in, -36_in}, -135_deg, driveGains, turnGains);
-	goTo({36_in, -36_in}, 135_deg, driveGains, turnGains);
+	// goTo({36_in, 36_in}, 45_deg, driveGains, turnGains);
+	// goTo({-36_in, 36_in}, -45_deg, driveGains, turnGains);
+	// goTo({-24_in, 0_in}, -90_deg, driveGains, turnGains);
+	// goTo({-36_in, -36_in}, -135_deg, driveGains, turnGains);
+	// goTo({36_in, -36_in}, 135_deg, driveGains, turnGains);
 	goTo({0_in, 0_in}, 0_deg, driveGains, turnGains);
 }
